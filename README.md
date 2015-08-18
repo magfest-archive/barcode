@@ -8,15 +8,21 @@ setup
 ==========
 set the following vars in your development.ini:
 
-# a secret 10-digit key (KEEP THIS SAFE, SHARE WITH NO-ONE) used to encrypt/decrypt barcodes
+a secret 10-digit key (KEEP THIS SAFE, SHARE WITH NO-ONE) used to encrypt/decrypt barcodes
+```
 barcode_key = "ABCDEF1234"
+```
 
-# a secret numeric salt value (KEEP THIS SAFE, SHARE WITH NO-ONE) used to encrypt/decrypt barcodes
-# pick a random number between 0 and max of 1,000,000 (don't go over)
+a secret numeric salt value (KEEP THIS SAFE, SHARE WITH NO-ONE) used to encrypt/decrypt barcodes
+pick a random number between 0 and max of 1,000,000 (don't go over)
+```
 barcode_salt = 121212
+```
 
-# a 1-byte event-ID number embedded in each barcode that tells us what event this came from
+a 1-byte event-ID number embedded in each barcode that tells us what event this came from
+```
 barcode_event_id = 2
+```
 
 
 barcode theory
