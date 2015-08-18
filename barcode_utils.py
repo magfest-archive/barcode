@@ -7,6 +7,7 @@ import code128
 import os
 
 
+# TODO: currently broken, need to rewrite in the context of uber
 def generate_barcode_csv(filename):
     badge_types = self.badge_types['badge_types']
 
@@ -25,6 +26,7 @@ def generate_barcode_csv(filename):
     f.close()
 
 
+# TODO: currently broken, need to rewrite in the context of uber
 def generate_barcode_nums(range_start, range_end):
     generated_lines = []
     seen_barcodes = []
@@ -112,7 +114,6 @@ def verify_barcode_is_valid_code128(encrypted_string):
 
 
 def _barcode_raw_encrypt(value, key):
-
     if len(value) != 4:
         raise ValueError("invalid barcode input: needs to be exactly 4 bytes")
 
@@ -163,4 +164,3 @@ def _barcode_raw_decrypt(value, key):
         raise ValueError("invalid barcode input: needs to be exactly 4 bytes")
 
     return decrytped
-
