@@ -1,0 +1,6 @@
+env
+*.pyc
+*.egg-info
+dist
+.eggs/
+development.ini
