@@ -63,7 +63,7 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
     salted_val = badge_num + (0 if not salt else salt)
 
     if salted_val > 0xFFFFFF:
-        raise Exception("badge_number is too high " + badge_num)
+        raise ValueError("badge_number is too high " + str(badge_num))
 
     data_to_encrypt = struct.pack('>BI', event_id, salted_val)
 
@@ -71,17 +71,17 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
     data_to_encrypt = bytearray([data_to_encrypt[0], data_to_encrypt[2], data_to_encrypt[3], data_to_encrypt[4]])
 
     if len(data_to_encrypt) != 4:
-        raise Exception("data to encrypt should be 4 bytes")
+        raise ValueError("data to encrypt should be 4 bytes")
 
     if len(key) != 10:
-        raise Exception("key length should be exactly 10 bytes")
+        raise ValueError("key length should be exactly 10 bytes")
 
     encrypted_string = _barcode_raw_encrypt(data_to_encrypt, key=key)
 
     # check to make sure it worked.
     decrypted = get_badge_num_from_barcode(encrypted_string, salt, key)
     if decrypted['badge_num'] != badge_num or decrypted['event_id'] != event_id:
-        raise Exception("didn't encode correctly")
+        raise ValueError("didn't encode correctly")
 
     # check to make sure this barcode number is valid for Code 128 barcode
     verify_barcode_is_valid_code128(encrypted_string)
@@ -108,10 +108,14 @@ def get_badge_num_from_barcode(barcode_num, salt=None, key=None):
 def verify_barcode_is_valid_code128(encrypted_string):
     for c in encrypted_string:
         if c not in code128._charset_b:
-            raise Exception("contains a char not valid in a code128 barcode")
+            raise ValueError("contains a char not valid in a code128 barcode")
 
 
 def _barcode_raw_encrypt(value, key):
+
+    if len(value) != 4:
+        raise ValueError("invalid barcode input: needs to be exactly 4 bytes")
+
     # skip32 generates 4 bytes output from 4 bytes input
     _encrypt = True
     skip32.skip32(key, value, _encrypt)
@@ -122,12 +126,13 @@ def _barcode_raw_encrypt(value, key):
     # designed to be vaguely human.  this takes our 4 bytes and turns it into 6 chars
     encrypted_value = base64.encodebytes(value).decode('ascii')
 
-    # TODO: add exception here if not 4 bytes
-
     # important note: because we are not an even multiple of 3 bytes, base64 needs to pad
     # the resulting string with equals signs.  we can strip them out knowing that our length is 4 bytes
     # IF YOU CHANGE THE LENGTH OF THE ENCRYPTED DATA FROM 4 BYTES, THIS WILL NO LONGER WORK.
     encrypted_value = encrypted_value.replace('==\n', '')
+
+    if len(encrypted_value) != 6:
+        raise ValueError("Barcode encoding failure: result should be 6 characters")
 
     return encrypted_value
 
@@ -142,7 +147,9 @@ def _barcode_raw_decrypt(value, key):
     # the resulting string with equals signs.  we can strip them out knowing that our length is 4 bytes
     # IF YOU CHANGE THE LENGTH OF THE ENCRYPTED DATA FROM 4 BYTES, THIS WILL NO LONGER WORK.
 
-    # TODO: add exception here if not 6 chars
+    if len(value) != 6:
+        raise ValueError("Barcode encoding failure: result should be 6 characters")
+
     value += '==\n'
 
     decoded = base64.decodebytes(value.encode('ascii'))
@@ -151,6 +158,9 @@ def _barcode_raw_decrypt(value, key):
     _encrypt = False
     decrytped = bytearray(decoded)
     skip32.skip32(key, decrytped, _encrypt)
+
+    if len(decrytped) != 4:
+        raise ValueError("invalid barcode input: needs to be exactly 4 bytes")
 
     return decrytped
 
