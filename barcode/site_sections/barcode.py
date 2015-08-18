@@ -1,7 +1,6 @@
 from barcode import *
 from barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode
 
-# TODO: restrict to just admins for this stuff, probably.
 @all_renderable(c.PEOPLE)
 class Root:
     def test(self):
