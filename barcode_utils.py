@@ -1,3 +1,5 @@
+from barcode import *
+
 import base64
 import struct
 import skip32
@@ -27,7 +29,7 @@ def generate_barcode_nums(range_start, range_end):
     generated_lines = []
     seen_barcodes = []
     for badge_num in range(range_start, range_end+1):
-        barcode_num = BarcodeNumberGenerator.generate_barcode_from_badge_num(
+        barcode_num = generate_barcode_from_badge_num(
             badge_num=int(badge_num),
             event_id=self.event_id,
             salt=self.salt,
@@ -49,7 +51,11 @@ def generate_barcode_nums(range_start, range_end):
     return generated_lines
 
 
-def generate_barcode_from_badge_num(badge_num, event_id, salt, key):
+def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=None):
+    event_id = config['secret']['barcode_event_id'] if not event_id else event_id
+    salt = config['secret']['barcode_salt'] if not salt else salt
+    key = bytes(config['secret']['barcode_key'],'ascii') if not key else key
+
     # packed data going to be encrypted is:
     # byte 1 - 8bit event ID, usually 1 char
     # byte 2,3,4 - 24bit badge number
@@ -70,7 +76,7 @@ def generate_barcode_from_badge_num(badge_num, event_id, salt, key):
     if len(key) != 10:
         raise Exception("key length should be exactly 10 bytes")
 
-    encrypted_string = barcode_raw_encrypt(data_to_encrypt, key=key)
+    encrypted_string = _barcode_raw_encrypt(data_to_encrypt, key=key)
 
     # check to make sure it worked.
     decrypted = get_badge_num_from_barcode(encrypted_string, salt, key)
@@ -83,8 +89,11 @@ def generate_barcode_from_badge_num(badge_num, event_id, salt, key):
     return encrypted_string
 
 
-def get_badge_num_from_barcode(barcode_num, salt, key):
-    decrypted = barcode_raw_decrypt(barcode_num, key=key)
+def get_badge_num_from_barcode(barcode_num, salt=None, key=None):
+    salt = config['secret']['barcode_salt'] if not salt else salt
+    key = bytes(config['secret']['barcode_key'],'ascii') if not key else key
+
+    decrypted = _barcode_raw_decrypt(barcode_num, key=key)
 
     result = dict()
 
@@ -102,7 +111,7 @@ def verify_barcode_is_valid_code128(encrypted_string):
             raise Exception("contains a char not valid in a code128 barcode")
 
 
-def barcode_raw_encrypt(value, key):
+def _barcode_raw_encrypt(value, key):
     # skip32 generates 4 bytes output from 4 bytes input
     _encrypt = True
     skip32.skip32(key, value, _encrypt)
@@ -123,7 +132,7 @@ def barcode_raw_encrypt(value, key):
     return encrypted_value
 
 
-def barcode_raw_decrypt(value, key):
+def _barcode_raw_decrypt(value, key):
     # raw bytes aren't suitable for a Code 128 barcode though,
     # so convert it to base64 encoding
     # which is just some alphanumeric and numeric chars and is
