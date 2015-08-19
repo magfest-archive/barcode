@@ -17,6 +17,7 @@ def test_cfg_fixtures(cfg):
     assert config['secret']['barcode_event_id'] <= 0xFF
     assert config['secret']['barcode_event_id'] == 0xFF
 
+
 def test_encrypt_decrypt(cfg):
     badge_num = 3
     encrypted = generate_barcode_from_badge_num(badge_num=badge_num)
@@ -27,13 +28,24 @@ def test_encrypt_decrypt(cfg):
     assert decrypted['badge_num'] == badge_num
     assert decrypted['event_id'] == config['secret']['barcode_event_id']
 
+
 def test_fail_too_high_badges(cfg):
     with pytest.raises(ValueError) as ex:
         encrypted = generate_barcode_from_badge_num(badge_num=0xFFFFFF+1)
-    assert 'badge_number is too high' in str(ex.value)
+    assert 'either badge_number or salt is too large' in str(ex.value)
+
 
 def test_fail_key_length(cfg, monkeypatch):
     monkeypatch.setitem(config['secret'], 'barcode_key', "X")
     with pytest.raises(ValueError) as ex:
         encrypted = generate_barcode_from_badge_num(badge_num=1)
     assert 'key length should be exactly' in str(ex.value)
+
+
+def test_fail_wrong_event_id(cfg, monkeypatch):
+    with pytest.raises(ValueError) as ex:
+        barcode = generate_barcode_from_badge_num(badge_num=1, event_id=1)
+        get_badge_num_from_barcode(barcode_num=barcode, event_id=2)
+    assert "doesn't match our event ID" in str(ex.value)
+
+
