@@ -1,6 +1,6 @@
 import pytest
 from barcode import *
-from barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode
+from barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode, assert_is_valid_rams_barcode
 
 
 @pytest.fixture
@@ -48,4 +48,22 @@ def test_fail_wrong_event_id(cfg, monkeypatch):
         get_badge_num_from_barcode(barcode_num=barcode, event_id=2)
     assert "doesn't match our event ID" in str(ex.value)
 
+def test_dontfail_wrong_event_id(cfg):
+    badge_num = 78946
+    barcode = generate_barcode_from_badge_num(badge_num=badge_num)
+    decrytped = get_badge_num_from_barcode(barcode_num=barcode, event_id=2, verify_event_id_matches=False)
+    assert decrytped['badge_num'] == badge_num
+    assert decrytped['event_id'] == config['secret']['barcode_event_id']
+
+
+def test_barcode_character_validations(cfg):
+    # some valid barcodes
+    for s in ["jhgsd+", "ABMN45", "asfnb/", "912765", "++//00"]:
+        assert_is_valid_rams_barcode(s)
+
+    # some invalid barcodes
+    for s in ["^^^^^^", "(}(*&4", "---2hg", "{}{<>?", "      ", "ABCDEFGH", "abcdefgh", "1234567"]:
+        with pytest.raises(ValueError) as ex:
+            assert_is_valid_rams_barcode(s)
+        assert 'barcode validation error' in str(ex.value)
 

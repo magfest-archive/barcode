@@ -53,6 +53,9 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
     salt = config['secret']['barcode_salt'] if not salt else salt
     key = bytes(config['secret']['barcode_key'],'ascii') if not key else key
 
+    if event_id > 0xFF or event_id < 0x00:
+        raise ValueError("event_id needs to be between 0 and 255")
+
     if len(key) != 10:
         raise ValueError("key length should be exactly 10 bytes")
 
@@ -63,11 +66,13 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
     salted_val = badge_num + (0 if not salt else salt)
 
     if salted_val > 0xFFFFFF:
-        raise ValueError("either badge_number or salt is too large " + str(badge_num))
+        raise ValueError("either badge_number or salt is too large to turn into a barcode: " + str(badge_num))
 
+    # create a 5-byte result with event_id and salted_val packed in there
     data_to_encrypt = struct.pack('>BI', event_id, salted_val)
 
-    # remove the highest byte in that integer (2nd byte)
+    # discard the 2nd byte of this 5 byte structure (the highest byte of salted_val).  it should always be zero.
+    # reduces data_to_encrypt from 5 bytes to 4 bytes.
     data_to_encrypt = bytearray([data_to_encrypt[0], data_to_encrypt[2], data_to_encrypt[3], data_to_encrypt[4]])
 
     if len(data_to_encrypt) != 4:
@@ -81,7 +86,7 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
         raise ValueError("internal algorithm error: verification did not decrypt correctly")
 
     # check to make sure this barcode number is valid for Code 128 barcode
-    verify_barcode_is_valid_code128(encrypted_string)
+    assert_is_valid_rams_barcode(encrypted_string)
 
     return encrypted_string
 
@@ -91,12 +96,17 @@ def get_badge_num_from_barcode(barcode_num, salt=None, key=None, event_id=None, 
     salt = config['secret']['barcode_salt'] if not salt else salt
     key = bytes(config['secret']['barcode_key'],'ascii') if not key else key
 
+    assert_is_valid_rams_barcode(barcode_num)
+
     decrypted = _barcode_raw_decrypt(barcode_num, key=key)
 
     result = dict()
 
+    # event_id is the 1st byte of these 4 bytes
     result['event_id'] = struct.unpack('>B', bytearray([decrypted[0]]))[0]
 
+    # salted_val is the remaining 3 bytes, and the high order byte is always 0, yielding a 24bit number we
+    # unpack into a 32bit int
     badge_bytes = bytearray(bytes([0, decrypted[1], decrypted[2], decrypted[3]]))
     result['badge_num'] = struct.unpack('>I', badge_bytes)[0] - salt
 
@@ -107,10 +117,32 @@ def get_badge_num_from_barcode(barcode_num, salt=None, key=None, event_id=None, 
     return result
 
 
-def verify_barcode_is_valid_code128(encrypted_string):
-    for c in encrypted_string:
+def verify_is_valid_rams_barcode(barcode):
+    return barcode.find('=') == -1 and \
+           verify_is_valid_base64_charset(barcode) and \
+           verify_barcode_is_valid_code128_charset(barcode) and \
+           len(barcode) == 6
+
+_valid_base_64_charset = tuple(string.ascii_letters) + tuple(string.digits) + ('+', '/', '=')
+
+
+def verify_is_valid_base64_charset(str):
+    for c in str:
+        if c not in _valid_base_64_charset:
+            return False
+    return True
+
+def verify_barcode_is_valid_code128_charset(str):
+    for c in str:
         if c not in code128._charset_b:
-            raise ValueError("contains a char not valid in a code128 barcode")
+            return False
+    return True
+
+
+def assert_is_valid_rams_barcode(barcode):
+    if not verify_is_valid_rams_barcode(barcode):
+        raise ValueError("barcode validation error: this barcode contains a character that " +
+                         "is not valid in a RAMS barcode: '" + barcode + "'")
 
 
 def _barcode_raw_encrypt(value, key):
