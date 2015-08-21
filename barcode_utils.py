@@ -6,49 +6,44 @@ import skip32
 import code128
 import os
 
+"""
+Generate barcode CSV file
 
-# TODO: currently broken, need to rewrite in the context of uber
-def generate_barcode_csv(filename):
-    badge_types = self.badge_types['badge_types']
+Exports a list with 2 columns: badge number, barcode
+This can be used to send to the badge printer so they can print the numbers on all the badges.
 
-    # TODO: modify so we read the config directly from uber.
-    lines = []
-    for badge_type, ranges in badge_types.items():
-        range_start = int(ranges['range_start'])
-        range_end = int(ranges['range_end'])
-        lines = lines + self.generate_barcode_nums(range_start, range_end)
+Arguments:
+filename (optional): if given, write to this file. if omitted, write to stdout
+"""
+@entry_point
+def generate_all_barcodes_csv():
+    outfile = sys.stdout if not len(sys.argv) > 1 else open(sys.argv[1],'w')
 
-    f = open(filename,'w')
-
-    for line in lines:
-        f.write(line + os.linesep)
-
-    f.close()
+    sort_by_badge_start_num = lambda badge_range: badge_range[1][0]
+    for (badge_type, (range_start, range_end)) in sorted(c.BADGE_RANGES.items(), key=sort_by_badge_start_num):
+        for line in generate_barcode_csv(range_start, range_end):
+            outfile.write(line)
 
 
-# TODO: currently broken, need to rewrite in the context of uber
-def generate_barcode_nums(range_start, range_end):
+def generate_barcode_csv(range_start, range_end):
     generated_lines = []
     seen_barcodes = []
     for badge_num in range(range_start, range_end+1):
-        barcode_num = generate_barcode_from_badge_num(
-            badge_num=int(badge_num),
-            event_id=self.event_id,
-            salt=self.salt,
-            key=self.secret_key
-        )
+        barcode_num = generate_barcode_from_badge_num(badge_num=badge_num)
 
-        line = "{badge_num},{barcode_num}".format(
+        line = "{badge_num},{barcode_num}{newline}".format(
             badge_num=badge_num,
             barcode_num=barcode_num,
+            newline=os.linesep
         )
         generated_lines.append(line)
 
         # ensure that we haven't seen this value before
+        # We don't expect this to ever happen, but, never hurts to be paranoid.
         if barcode_num in seen_barcodes:
-            raise ValueError('COLLISION: generated a badge# that\'s already been seen')
-        else:
-            seen_barcodes.append(barcode_num)
+            raise ValueError("COLLISION: generated a badge# that's already been seen. change barcode key, try again")
+
+        seen_barcodes.append(barcode_num)
 
     return generated_lines
 
@@ -58,59 +53,96 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
     salt = config['secret']['barcode_salt'] if not salt else salt
     key = bytes(config['secret']['barcode_key'],'ascii') if not key else key
 
-    # packed data going to be encrypted is:
-    # byte 1 - 8bit event ID, usually 1 char
-    # byte 2,3,4 - 24bit badge number
+    if event_id > 0xFF or event_id < 0x00:
+        raise ValueError("event_id needs to be between 0 and 255")
+
+    if len(key) != 10:
+        raise ValueError("key length should be exactly 10 bytes")
+
+    # 4 bytes of data are going to be packed into an ecnrypted barcode:
+    # byte 1        1 byte event ID
+    # byte 2,3,4    24bit badge number (max badge# = 16million, more than reasonable)
 
     salted_val = badge_num + (0 if not salt else salt)
 
     if salted_val > 0xFFFFFF:
-        raise ValueError("badge_number is too high " + str(badge_num))
+        raise ValueError("either badge_number or salt is too large to turn into a barcode: " + str(badge_num))
 
+    # create a 5-byte result with event_id and salted_val packed in there
     data_to_encrypt = struct.pack('>BI', event_id, salted_val)
 
-    # remove the highest byte in that integer (2nd byte)
+    # discard the 2nd byte of this 5 byte structure (the highest byte of salted_val).  it should always be zero.
+    # reduces data_to_encrypt from 5 bytes to 4 bytes.
     data_to_encrypt = bytearray([data_to_encrypt[0], data_to_encrypt[2], data_to_encrypt[3], data_to_encrypt[4]])
 
     if len(data_to_encrypt) != 4:
         raise ValueError("data to encrypt should be 4 bytes")
-
-    if len(key) != 10:
-        raise ValueError("key length should be exactly 10 bytes")
 
     encrypted_string = _barcode_raw_encrypt(data_to_encrypt, key=key)
 
     # check to make sure it worked.
     decrypted = get_badge_num_from_barcode(encrypted_string, salt, key)
     if decrypted['badge_num'] != badge_num or decrypted['event_id'] != event_id:
-        raise ValueError("didn't encode correctly")
+        raise ValueError("internal algorithm error: verification did not decrypt correctly")
 
     # check to make sure this barcode number is valid for Code 128 barcode
-    verify_barcode_is_valid_code128(encrypted_string)
+    assert_is_valid_rams_barcode(encrypted_string)
 
     return encrypted_string
 
 
-def get_badge_num_from_barcode(barcode_num, salt=None, key=None):
+def get_badge_num_from_barcode(barcode_num, salt=None, key=None, event_id=None, verify_event_id_matches=True):
+    event_id = config['secret']['barcode_event_id'] if not event_id else event_id
     salt = config['secret']['barcode_salt'] if not salt else salt
     key = bytes(config['secret']['barcode_key'],'ascii') if not key else key
+
+    assert_is_valid_rams_barcode(barcode_num)
 
     decrypted = _barcode_raw_decrypt(barcode_num, key=key)
 
     result = dict()
 
+    # event_id is the 1st byte of these 4 bytes
     result['event_id'] = struct.unpack('>B', bytearray([decrypted[0]]))[0]
 
+    # salted_val is the remaining 3 bytes, and the high order byte is always 0, yielding a 24bit number we
+    # unpack into a 32bit int
     badge_bytes = bytearray(bytes([0, decrypted[1], decrypted[2], decrypted[3]]))
     result['badge_num'] = struct.unpack('>I', badge_bytes)[0] - salt
+
+    if verify_event_id_matches and result['event_id'] != event_id:
+        raise ValueError("error: event_id of decrypted barcode doesn't match our event ID."
+                         "expected: " + str(event_id) + " got: " + str(result['event_id']))
 
     return result
 
 
-def verify_barcode_is_valid_code128(encrypted_string):
-    for c in encrypted_string:
+def verify_is_valid_rams_barcode(barcode):
+    return barcode.find('=') == -1 and \
+           verify_is_valid_base64_charset(barcode) and \
+           verify_barcode_is_valid_code128_charset(barcode) and \
+           len(barcode) == 6
+
+_valid_base_64_charset = tuple(string.ascii_letters) + tuple(string.digits) + ('+', '/', '=')
+
+
+def verify_is_valid_base64_charset(str):
+    for c in str:
+        if c not in _valid_base_64_charset:
+            return False
+    return True
+
+def verify_barcode_is_valid_code128_charset(str):
+    for c in str:
         if c not in code128._charset_b:
-            raise ValueError("contains a char not valid in a code128 barcode")
+            return False
+    return True
+
+
+def assert_is_valid_rams_barcode(barcode):
+    if not verify_is_valid_rams_barcode(barcode):
+        raise ValueError("barcode validation error: this barcode contains a character that " +
+                         "is not valid in a RAMS barcode: '" + barcode + "'")
 
 
 def _barcode_raw_encrypt(value, key):
