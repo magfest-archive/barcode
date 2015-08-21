@@ -133,7 +133,7 @@ def _barcode_raw_encrypt(value, key):
     encrypted_value = encrypted_value.replace('==\n', '')
 
     if len(encrypted_value) != 6:
-        raise ValueError("Barcode encoding failure: result should be 6 characters")
+        raise ValueError("Barcode encryption failure: result should be 6 characters")
 
     return encrypted_value
 
@@ -149,7 +149,7 @@ def _barcode_raw_decrypt(value, key):
     # IF YOU CHANGE THE LENGTH OF THE ENCRYPTED DATA FROM 4 BYTES, THIS WILL NO LONGER WORK.
 
     if len(value) != 6:
-        raise ValueError("Barcode encoding failure: result should be 6 characters")
+        raise ValueError("Barcode decryption failure: result should be 6 characters")
 
     value += '==\n'
 
