@@ -57,7 +57,7 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
         raise ValueError("event_id needs to be between 0 and 255")
 
     if len(key) != 10:
-        raise ValueError("key length should be exactly 10 bytes")
+        raise ValueError("key length should be exactly 10 bytes, key length=" + len(key))
 
     # 4 bytes of data are going to be packed into an ecnrypted barcode:
     # byte 1        1 byte event ID
