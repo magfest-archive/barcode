@@ -190,7 +190,11 @@ def _barcode_raw_decrypt(value, key):
     # skip32 generates 4 bytes output from 4 bytes input
     _encrypt = False
     decrytped = bytearray(decoded)
-    skip32.skip32(key, decrytped, _encrypt)
+
+    try:
+        skip32.skip32(key, decrytped, _encrypt)
+    except Exception as e:
+        raise ValueError("failed to decrypt barcode. check secret_key, event_id, and whether this barcode is from this event") from e
 
     if len(decrytped) != 4:
         raise ValueError("invalid barcode input: needs to be exactly 4 bytes")
