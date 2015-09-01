@@ -36,10 +36,5 @@ class BarcodePersonalizedBadgeReport(BarcodeReportMixin, uber.reports.Personaliz
     pass
 
 
-class BarcodeSupporterBadgeReport(BarcodeReportMixin, uber.reports.SupporterBadgeReport):
-    pass
-
-
 uber.reports.printed_badge_report_type = BarcodePrintedBadgeReport
 uber.reports.personalized_badge_report_type = BarcodePersonalizedBadgeReport
-uber.reports.supporter_badge_report_type = BarcodeSupporterBadgeReport
