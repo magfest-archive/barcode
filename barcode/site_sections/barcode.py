@@ -1,5 +1,5 @@
 from barcode import *
-from barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode
+from barcode.barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode
 
 @all_renderable(c.PEOPLE)
 class Root:
