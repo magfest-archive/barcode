@@ -2,8 +2,8 @@ from barcode import *
 
 import base64
 import struct
-import skip32
-import code128
+import barcode.skip32
+import barcode.code128
 import os
 
 """
@@ -49,9 +49,9 @@ def generate_barcode_csv(range_start, range_end):
 
 
 def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=None):
-    event_id = config['secret']['barcode_event_id'] if not event_id else event_id
-    salt = config['secret']['barcode_salt'] if not salt else salt
-    key = bytes(config['secret']['barcode_key'],'ascii') if not key else key
+    event_id = barcode.config['secret']['barcode_event_id'] if not event_id else event_id
+    salt = barcode.config['secret']['barcode_salt'] if not salt else salt
+    key = bytes(barcode.config['secret']['barcode_key'],'ascii') if not key else key
 
     if event_id > 0xFF or event_id < 0x00:
         raise ValueError("event_id needs to be between 0 and 255")
@@ -92,9 +92,9 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
 
 
 def get_badge_num_from_barcode(barcode_num, salt=None, key=None, event_id=None, verify_event_id_matches=True):
-    event_id = config['secret']['barcode_event_id'] if not event_id else event_id
-    salt = config['secret']['barcode_salt'] if not salt else salt
-    key = bytes(config['secret']['barcode_key'],'ascii') if not key else key
+    event_id = barcode.config['secret']['barcode_event_id'] if not event_id else event_id
+    salt = barcode.config['secret']['barcode_salt'] if not salt else salt
+    key = bytes(barcode.config['secret']['barcode_key'],'ascii') if not key else key
 
     assert_is_valid_rams_barcode(barcode_num)
 
@@ -134,7 +134,7 @@ def verify_is_valid_base64_charset(str):
 
 def verify_barcode_is_valid_code128_charset(str):
     for c in str:
-        if c not in code128._charset_b:
+        if c not in barcode.code128._charset_b:
             return False
     return True
 
@@ -151,7 +151,7 @@ def _barcode_raw_encrypt(value, key):
 
     # skip32 generates 4 bytes output from 4 bytes input
     _encrypt = True
-    skip32.skip32(key, value, _encrypt)
+    barcode.skip32.skip32(key, value, _encrypt)
 
     # raw bytes aren't suitable for a Code 128 barcode though,
     # so convert it to base58 encoding
@@ -192,7 +192,7 @@ def _barcode_raw_decrypt(value, key):
     decrytped = bytearray(decoded)
 
     try:
-        skip32.skip32(key, decrytped, _encrypt)
+        barcode.skip32.skip32(key, decrytped, _encrypt)
     except Exception as e:
         raise ValueError("failed to decrypt barcode. check secret_key, event_id, and whether this barcode is from this event") from e
 
