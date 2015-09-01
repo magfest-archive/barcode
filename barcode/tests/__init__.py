@@ -1,6 +1,6 @@
 import pytest
 from barcode import *
-from barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode, assert_is_valid_rams_barcode
+from barcode.barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode, assert_is_valid_rams_barcode
 
 
 @pytest.fixture
