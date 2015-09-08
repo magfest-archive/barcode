@@ -3,6 +3,7 @@ from barcode._version import __version__
 from uber.reports import *
 from barcode import *
 from barcode.barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode
+from barcode.barcode_api import *
 
 config = parse_config(__file__)
 mount_site_sections(config['module_root'])

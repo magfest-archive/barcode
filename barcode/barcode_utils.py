@@ -141,8 +141,7 @@ def verify_barcode_is_valid_code128_charset(str):
 
 def assert_is_valid_rams_barcode(barcode):
     if not verify_is_valid_rams_barcode(barcode):
-        raise ValueError("barcode validation error: this barcode contains a character that " +
-                         "is not valid in a RAMS barcode: '" + barcode + "'")
+        raise ValueError("barcode validation error: invalid format for RAMS barcode: '" + barcode + "'")
 
 
 def _barcode_raw_encrypt(value, key):
