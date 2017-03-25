@@ -6,18 +6,20 @@ import barcode.skip32
 import barcode.code128
 import os
 
-"""
-Generate barcode CSV file
 
-Exports a list with 2 columns: badge number, barcode
-This can be used to send to the badge printer so they can print the numbers on all the badges.
-
-Arguments:
-filename (optional): if given, write to this file. if omitted, write to stdout
-"""
 @entry_point
 def generate_all_barcodes_csv():
-    outfile = sys.stdout if not len(sys.argv) > 1 else open(sys.argv[1],'w')
+    """
+    Generate barcode CSV file
+
+    Exports a list with 2 columns: badge number, barcode. This can be used to
+    send to the badge printer so they can print the numbers on all the badges.
+
+    Arguments:
+        filename (str): Writes to the given file. Optional, if omitted writes
+            to stdout.
+    """
+    outfile = sys.stdout if not len(sys.argv) > 1 else open(sys.argv[1], 'w')
 
     sort_by_badge_start_num = lambda badge_range: badge_range[1][0]
     for (badge_type, (range_start, range_end)) in sorted(c.BADGE_RANGES.items(), key=sort_by_badge_start_num):
@@ -94,7 +96,7 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
 def get_badge_num_from_barcode(barcode_num, salt=None, key=None, event_id=None, verify_event_id_matches=True):
     event_id = barcode.config['secret']['barcode_event_id'] if not event_id else event_id
     salt = barcode.config['secret']['barcode_salt'] if not salt else salt
-    key = bytes(barcode.config['secret']['barcode_key'],'ascii') if not key else key
+    key = bytes(barcode.config['secret']['barcode_key'], 'ascii') if not key else key
 
     assert_is_valid_rams_barcode(barcode_num)
 
@@ -131,6 +133,7 @@ def verify_is_valid_base64_charset(str):
         if c not in _valid_base_64_charset:
             return False
     return True
+
 
 def verify_barcode_is_valid_code128_charset(str):
     for c in str:
