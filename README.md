@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/magfest/barcode.svg)](https://travis-ci.org/magfest/barcode) [![Coverage Status](https://coveralls.io/repos/github/magfest/barcode/badge.svg?branch=master)](https://coveralls.io/github/magfest/barcode?branch=master)
+
 RAMS Core plugin: Barcode
 ==============
 
