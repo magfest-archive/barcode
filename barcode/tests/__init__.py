@@ -48,6 +48,7 @@ def test_fail_wrong_event_id(cfg, monkeypatch):
         get_badge_num_from_barcode(barcode_num=barcode, event_id=2)
     assert "doesn't match our event ID" in str(ex.value)
 
+
 def test_dontfail_wrong_event_id(cfg):
     badge_num = 78946
     barcode = generate_barcode_from_badge_num(badge_num=badge_num)
@@ -66,4 +67,3 @@ def test_barcode_character_validations(cfg):
         with pytest.raises(ValueError) as ex:
             assert_is_valid_rams_barcode(s)
         assert 'barcode validation error' in str(ex.value)
-
