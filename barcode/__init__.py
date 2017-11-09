@@ -5,6 +5,9 @@ from barcode.barcode_utils import generate_barcode_from_badge_num, get_badge_num
 from barcode.barcode_api import *
 
 config = parse_config(__file__)
+
+c.BARCODE_PREFIX_CHAR = config['barcode_prefix_char']
+
 mount_site_sections(config['module_root'])
 static_overrides(join(config['module_root'], 'static'))
 template_overrides(join(config['module_root'], 'templates'))
