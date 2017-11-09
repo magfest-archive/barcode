@@ -22,7 +22,7 @@ def test_encrypt_decrypt(cfg):
     badge_num = 3
     encrypted = generate_barcode_from_badge_num(badge_num=badge_num)
 
-    assert len(encrypted) == 6
+    assert len(encrypted) == 7
     decrypted = get_badge_num_from_barcode(barcode_num=encrypted)
 
     assert decrypted['badge_num'] == badge_num
@@ -57,13 +57,28 @@ def test_dontfail_wrong_event_id(cfg):
     assert decrytped['event_id'] == config['secret']['barcode_event_id']
 
 
-def test_barcode_character_validations(cfg):
+def test_valid_barcode_character_validations(cfg):
     # some valid barcodes
     for s in ["jhgsd+", "ABMN45", "asfnb/", "912765", "++//00"]:
-        assert_is_valid_rams_barcode(s)
 
-    # some invalid barcodes
-    for s in ["^^^^^^", "(}(*&4", "---2hg", "{}{<>?", "      ", "ABCDEFGH", "abcdefgh", "1234567"]:
+        # test to make sure it DOES work with prefix
+        assert_is_valid_rams_barcode(c.BARCODE_PREFIX_CHAR + s)
+
+        # test to make sure it DOES NOT work without prefix
         with pytest.raises(ValueError) as ex:
             assert_is_valid_rams_barcode(s)
+        assert 'barcode validation error' in str(ex.value)
+
+
+def test_invalid_barcode_character_validations(cfg):
+    # some invalid barcodes
+    for s in ["^^^^^^", "(}(*&4", "---2hg", "{}{<>?", "      ", "ABCDEFGH", "abcdefgh", "1234567", "ffff"]:
+        # test without a prefix (shouldn't work)
+        with pytest.raises(ValueError) as ex:
+            assert_is_valid_rams_barcode(s)
+        assert 'barcode validation error' in str(ex.value)
+
+        # test with a prefix (still shouldn't work)
+        with pytest.raises(ValueError) as ex:
+            assert_is_valid_rams_barcode(c.BARCODE_PREFIX_CHAR + s)
         assert 'barcode validation error' in str(ex.value)

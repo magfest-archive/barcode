@@ -121,9 +121,10 @@ def get_badge_num_from_barcode(barcode_num, salt=None, key=None, event_id=None, 
 
 def verify_is_valid_rams_barcode(barcode):
     return barcode.find('=') == -1 and \
-           verify_is_valid_base64_charset(barcode) and \
-           verify_barcode_is_valid_code128_charset(barcode) and \
-           len(barcode) == 6
+           len(barcode) == 7 and \
+           barcode[0] == c.BARCODE_PREFIX_CHAR and \
+           verify_is_valid_base64_charset(barcode[1:]) and \
+           verify_barcode_is_valid_code128_charset(barcode[1:])
 
 _valid_base_64_charset = tuple(string.ascii_letters) + tuple(string.digits) + ('+', '/', '=')
 
@@ -166,8 +167,11 @@ def _barcode_raw_encrypt(value, key):
     # IF YOU CHANGE THE LENGTH OF THE ENCRYPTED DATA FROM 4 BYTES, THIS WILL NO LONGER WORK.
     encrypted_value = encrypted_value.replace('==\n', '')
 
-    if len(encrypted_value) != 6:
-        raise ValueError("Barcode encryption failure: result should be 6 characters")
+    # pre-pend a character prefix to this barcode for easy ID
+    encrypted_value = c.BARCODE_PREFIX_CHAR + encrypted_value
+
+    if len(encrypted_value) != 7:
+        raise ValueError("Barcode encryption failure: result should be 7 characters")
 
     return encrypted_value
 
@@ -182,9 +186,17 @@ def _barcode_raw_decrypt(value, key):
     # the resulting string with equals signs.  we can strip them out knowing that our length is 4 bytes
     # IF YOU CHANGE THE LENGTH OF THE ENCRYPTED DATA FROM 4 BYTES, THIS WILL NO LONGER WORK.
 
-    if len(value) != 6:
-        raise ValueError("Barcode decryption failure: result should be 6 characters")
+    if len(value) != 7:
+        raise ValueError("Barcode decryption failure: barcode should be 7 characters")
 
+    # strip the character prefix
+    if value[0] == c.BARCODE_PREFIX_CHAR:
+        value = value[1:]
+        assert len(value) == 6
+    else:
+        raise ValueError("Barcode decryption failure: barcode should start with prefix of '{}'".format(c.BARCODE_PREFIX_CHAR))
+
+    # add the base64 tail in here
     value += '==\n'
 
     decoded = base64.decodebytes(value.encode('ascii'))
@@ -199,6 +211,6 @@ def _barcode_raw_decrypt(value, key):
         raise ValueError("failed to decrypt barcode. check secret_key, event_id, and whether this barcode is from this event") from e
 
     if len(decrytped) != 4:
-        raise ValueError("invalid barcode input: needs to be exactly 4 bytes")
+        raise ValueError("invalid barcode decryption: output result was not exactly 4 bytes")
 
     return decrytped
