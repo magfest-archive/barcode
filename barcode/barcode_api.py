@@ -6,10 +6,15 @@ from barcode.barcode_utils import get_badge_num_from_barcode
 
 @all_api_auth(c.API_READ)
 class BarcodeLookup:
-    def lookup_attendee_from_barcode(self, barcode_value):
+    def lookup_attendee_from_barcode(self, barcode_value, full=False):
         """
         Returns a single attendee using the barcode value from their badge.
-        Takes the (possibly encrypted) barcode value as a single parameter.
+
+        Takes the (possibly encrypted) barcode value as the first parameter.
+
+        Optionally, "full" may be passed as the second parameter to return the
+        complete attendee record, including departments, shifts, and food
+        restrictions.
         """
         with Session() as session:
             badge_num = -1
@@ -23,13 +28,14 @@ class BarcodeLookup:
 
             attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
             if attendee:
-                return attendee.to_dict(AttendeeLookup.fields)
+                return attendee.to_dict(AttendeeLookup.fields_full if full else AttendeeLookup.fields)
             else:
                 return {'error': 'Valid barcode, but no attendee found with Badge #{}'.format(badge_num)}
 
     def lookup_badge_number_from_barcode(self, barcode_value):
         """
         Returns a badge number using the barcode value from the given badge.
+
         Takes the (possibly encrypted) barcode value as a single parameter.
         """
         with Session() as session:
