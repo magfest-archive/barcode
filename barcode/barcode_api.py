@@ -1,4 +1,4 @@
-from uber.api import all_api_auth, AttendeeLookup
+from uber.api import all_api_auth, AttendeeLookup, _attendee_fields_and_query
 from uber.server import register_jsonrpc
 from barcode import *
 from barcode.barcode_utils import get_badge_num_from_barcode
@@ -26,9 +26,11 @@ class BarcodeLookup:
 
             # note: a descrypted barcode can yield to a valid badge#, but an attendee may not have that badge#
 
-            attendee = session.query(Attendee).filter_by(badge_num=badge_num).first()
+            query = session.query(Attendee).filter_by(badge_num=badge_num)
+            fields, query = _attendee_fields_and_query(full, query)
+            attendee = query.first()
             if attendee:
-                return attendee.to_dict(AttendeeLookup.fields_full if full else AttendeeLookup.fields)
+                return attendee.to_dict(fields)
             else:
                 return {'error': 'Valid barcode, but no attendee found with Badge #{}'.format(badge_num)}
 
