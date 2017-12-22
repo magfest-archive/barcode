@@ -35,3 +35,30 @@ class BarcodePersonalizedBadgeReport(BarcodeReportMixin, uber.reports.Personaliz
 
 uber.reports.PrintedBadgeReport = BarcodePrintedBadgeReport
 uber.reports.PersonalizedBadgeReport = BarcodePersonalizedBadgeReport
+
+
+def check_for_encrypted_badge_num(func):
+    """
+    On some pages, we pass a 'badge_num' parameter that might EITHER be a literal
+    badge number or an encrypted value (i.e., from a barcode scanner). This
+    decorator searches for a 'badge_num' parameter and decrypts it if necessary.
+    """
+
+    @wraps(func)
+    def with_check(*args, **kwargs):
+        if kwargs.get('badge_num', None):
+            try:
+                int(kwargs['badge_num'])
+            except Exception:
+                kwargs['badge_num'] = get_badge_num_from_barcode(barcode_num=kwargs['badge_num'])['badge_num']
+        return func(*args, **kwargs)
+
+    return with_check
+
+
+from uber.site_sections.registration import Root
+
+check_in = check_for_encrypted_badge_num(Root.check_in)
+new_checkin = check_for_encrypted_badge_num(Root.new_checkin)
+Root.check_in = check_in
+Root.new_checkin = new_checkin
