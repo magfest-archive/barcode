@@ -3,6 +3,7 @@ from barcode._version import __version__
 from barcode import *
 from barcode.barcode_utils import generate_barcode_from_badge_num, get_badge_num_from_barcode
 from barcode.barcode_api import *
+from uber.site_sections.registration import Root
 
 config = parse_config(__file__)
 
@@ -54,9 +55,6 @@ def check_for_encrypted_badge_num(func):
         return func(*args, **kwargs)
 
     return with_check
-
-
-from uber.site_sections.registration import Root
 
 check_in = check_for_encrypted_badge_num(Root.check_in)
 new_checkin = check_for_encrypted_badge_num(Root.new_checkin)
