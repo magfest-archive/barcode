@@ -8,7 +8,7 @@
           callback = callback || function () {
               };
 
-          var regexpUUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$/i;
+          var regexpUUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
           // Remove non-word characters bracketing the barcode if they match
           // Some scanners add these but we don't want them
@@ -20,7 +20,7 @@
 
           // Bypass decryption if it's a number or a UUID
           if ($.isNumeric(barcode) || barcode.match(regexpUUID)) {
-              callback({'badge_num': barcode});
+              callback({'barcode': barcode});
               return;
           }
 
@@ -43,46 +43,46 @@
           });
       };
 
+      // The currently-selected field is used as the default place to put a barcode
+      var $barcodeField = $(document.activeElement);
+
       // Override these per-page as necessary
+      var setBarcodeField = function () {
+      };
 
-      // If there's one and only one badge_num field on the page, use that
-      // Otherwise use the currently-selected field
-      if ($('input[name=badge_num]').length === 1) {
-          var $badgeNum = $('input[name=badge_num]');
-      } else {
-          var $badgeNum = $(document.activeElement);
-      }
-
-      var scannerOnError = function () {
-          $badgeNum.focus();
+      var useBarcode = function (barcode) {
       };
 
       var scannerOnReceive = function (event) {
           if (event.key === '~' || event.key === '\\') {
               event.preventDefault();
-              $badgeNum.blur();
+              $barcodeField.blur();
           }
+      };
+
+      var scannerOnError = function () {
+          $barcodeField.focus();
       };
 
       var scannerOnComplete = function (barcode, qty) {
           getBadgeNumFromBarcode(barcode, function (response) {
-              $badgeNum.focus();
+              $barcodeField.focus();
               if (response) {
                   if (response['error']) {
                       toastr.error(response['error'], '', {timeOut: 3000});
-                  } else if (response['badge_num']) {
-                      var badgeNum = response['badge_num'];
-                      if ($badgeNum.is(":text")) {
-                          $badgeNum.val(badgeNum);
+                  } else if (response['barcode']) {
+                      if ($barcodeField.is('input[name=badge_num]')) {
+                          $barcodeField.val(barcode);
                       }
-                      useBarcode(badgeNum);
+                      useBarcode(response['barcode']);
                   }
               }
           });
       };
 
-      var useBarcode = function (badgeNum) {
-      };
+      $(function () {
+          setBarcodeField();
+      });
 
       $(document).scannerDetection({
           timeBeforeScanTest: 100,
@@ -90,9 +90,9 @@
           endChar: [9, 13, '\\'],
           startChar: ['~', '\\'],
           preventDefault: false,
-          onError: scannerOnError(),
-          onReceive: scannerOnReceive(event),
-          onComplete: scannerOnComplete(barcode, qty)
+          onError: scannerOnError,
+          onReceive: scannerOnReceive,
+          onComplete: scannerOnComplete,
       });
   </script>
 {% endif %}
