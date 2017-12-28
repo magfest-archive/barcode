@@ -1,0 +1,103 @@
+{% extends "baseextra.html" %}
+{{ super() }}
+
+{% if detect_barcode_scan %}
+  <script type="text/javascript">
+      var checkBarcodeIsNotNumOrUUID = function (barcode, callback) {
+          // This is intended to help avoid errors
+          // when scanning a plain number or a UUID
+
+      };
+      var getBadgeNumFromBarcode = function (barcode, callback) {
+          barcode = ('' + barcode).trim();
+          callback = callback || function () {
+              };
+
+          var regexpUUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[1-5][0-9a-f]{3}-?[89ab][0-9a-f]{3}-?[0-9a-f]{12}$/i;
+
+          // Remove non-word characters bracketing the barcode if they match
+          // Some scanners add these but we don't want them
+          var first = barcode.substr(0, 1),
+              last = barcode.substr(barcode.length - 1);
+          if (first === last && last.match(/\W/g)) {
+              barcode = barcode.substr(1, barcode.length - 2);
+          }
+
+          // Bypass decryption if it's a number or a UUID
+          if ($.isNumeric(barcode) || barcode.match(regexpUUID)) {
+              callback({'badge_num': barcode});
+              return;
+          }
+
+          $.ajax({
+              method: 'POST',
+              url: '../barcode/get_badge_num_from_barcode',
+              data: {
+                  barcode: barcode,
+                  csrf_token: csrf_token
+              },
+              success: function (response, status) {
+                  if (response && response['badge_num'] === -1) {
+                      response['error'] = response['message'];
+                  }
+                  callback(response);
+              },
+              error: function (response, status, statusText) {
+                  callback({'error': 'Could not decode barcode: ' + statusText});
+              }
+          });
+      };
+
+      // Override these per-page as necessary
+
+      // If there's one and only one badge_num field on the page, use that
+      // Otherwise use the currently-selected field
+      if ($('input[name=badge_num]').length === 1) {
+          var $badgeNum = $('input[name=badge_num]');
+      } else {
+          var $badgeNum = $(document.activeElement);
+      }
+
+      var scannerOnError = function () {
+          $badgeNum.focus();
+      };
+
+      var scannerOnReceive = function (event) {
+          if (event.key === '~' || event.key === '\\') {
+              event.preventDefault();
+              $badgeNum.blur();
+          }
+      };
+
+      var scannerOnComplete = function (barcode, qty) {
+          getBadgeNumFromBarcode(barcode, function (response) {
+              $badgeNum.focus();
+              if (response) {
+                  if (response['error']) {
+                      toastr.error(response['error'], '', {timeOut: 3000});
+                  } else if (response['badge_num']) {
+                      var badgeNum = response['badge_num'];
+                      if ($badgeNum.is(":text")) {
+                          $badgeNum.val(badgeNum);
+                      }
+                      useBarcode(badgeNum);
+                  }
+              }
+          });
+      };
+
+      var useBarcode = function (badgeNum) {
+      };
+
+      $(document).scannerDetection({
+          timeBeforeScanTest: 100,
+          avgTimeByChar: 30,
+          endChar: [9, 13, '\\'],
+          startChar: ['~', '\\'],
+          preventDefault: false,
+          onError: scannerOnError(),
+          onReceive: scannerOnReceive(event),
+          onComplete: scannerOnComplete(barcode, qty)
+      });
+  </script>
+{% endif %}
