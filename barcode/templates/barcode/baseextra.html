@@ -71,10 +71,11 @@
                   if (response['error']) {
                       toastr.error(response['error'], '', {timeOut: 3000});
                   } else if (response['barcode']) {
+                      var barcode = response['barcode'];
                       if ($barcodeField.is('input[name=badge_num]')) {
                           $barcodeField.val(barcode);
                       }
-                      useBarcode(response['barcode']);
+                      useBarcode(barcode);
                   }
               }
           });
