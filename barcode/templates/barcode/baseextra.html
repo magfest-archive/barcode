@@ -3,11 +3,6 @@
 
 {% if detect_barcode_scan %}
   <script type="text/javascript">
-      var checkBarcodeIsNotNumOrUUID = function (barcode, callback) {
-          // This is intended to help avoid errors
-          // when scanning a plain number or a UUID
-
-      };
       var getBadgeNumFromBarcode = function (barcode, callback) {
           barcode = ('' + barcode).trim();
           callback = callback || function () {
