@@ -110,15 +110,16 @@
         focusOnError: true,  // Always focus, regardless of blurOnKeys
         focusOnComplete: true,  // Always focus, regardless of blurOnKeys
 
-        // Turn off toastr error messages entirely.
+        // Set to false to turn off toastr error messages entirely.
         showErrorMessage: true,
 
-        // Turn off toastr error messages, but only when target field is hidden.
+        // Set to false to turn off toastr error messages, but only when
+        // target field is hidden.
         showErrorMessageWhenHidden: true,
 
         // Determine if we do any special data handling.
-        // detectBadgeNum and detectUUID are mututally exclusive. If both are
-        // true, then only detectBadgeNum is used.
+        // detectBadgeNum and detectUUID are mututally exclusive.
+        // If both are true, then only detectBadgeNum is used.
         detectBadgeNum: false,
         detectUUID: false,
 
@@ -151,10 +152,15 @@
         onError: null
       }, options);
 
-      var isBlurredOnKeys = false;
+      var $targetBlurredOnKeys = null;
 
       this.getTargetField = function() {
-        return settings.targetField ? $(settings.targetField) : this;
+        if ($targetBlurredOnKeys) {
+          return $targetBlurredOnKeys;
+        } else if (settings.targetField) {
+          return $(settings.targetField);
+        }
+        return this;
       };
 
       this.getAutoSubmitForm = function() {
@@ -200,10 +206,10 @@
       };
 
       var handler = $.proxy(function(response) {
-        if (settings.refocusAfterBlurOnKeys && isBlurredOnKeys) {
-          this.getTargetField().focus();
+        if (settings.refocusAfterBlurOnKeys && $targetBlurredOnKeys) {
+          $targetBlurredOnKeys.focus();
         }
-        isBlurredOnKeys = false;
+        $targetBlurredOnKeys = null;
 
         if (response['error']) {
           this.onDetectionError(response);
@@ -224,7 +230,7 @@
         scannerDetectionOnReceiveHandlers.push($.proxy(function(event) {
           var $target = this.getTargetField();
           if ($target.is(':focus') && settings.blurOnKeys.indexOf(event.key) > -1) {
-            isBlurredOnKeys = true;
+            $targetBlurredOnKeys = $target;
             event.preventDefault();
             $target.blur();
           }
@@ -232,9 +238,9 @@
 
         if (settings.refocusAfterBlurOnKeys) {
           scannerDetectionOnErrorHandlers.push($.proxy(function(key) {
-            if (isBlurredOnKeys) {
-              isBlurredOnKeys = false;
-              this.getTargetField().focus();
+            if ($targetBlurredOnKeys) {
+              $targetBlurredOnKeys.focus();
+              $targetBlurredOnKeys = null;
             }
           }, this));
         }
