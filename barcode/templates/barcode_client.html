@@ -35,10 +35,6 @@
     });
   };
 
-  var isScannerDetecting = false;
-
-  var scannerDetectionBadgeNumHandlers = [];
-  var scannerDetectionUUIDHandlers = [];
   var scannerDetectionOnCompleteHandlers = [];
   var scannerDetectionOnErrorHandlers = [];
   var scannerDetectionOnReceiveHandlers = [];
@@ -62,25 +58,8 @@
           barcode = barcode.substr(1, barcode.length - 2);
         }
 
-        if (scannerDetectionUUIDHandlers.length > 0) {
-          var uuidMatch = barcode.match(RE_UUID);
-          if (uuidMatch) {
-            $.each(scannerDetectionUUIDHandlers, function(i, handler) {
-              handler({barcode: barcode, uuid: uuidMatch[1]});
-            });
-          }
-        }
-
-        if (scannerDetectionBadgeNumHandlers.length > 0) {
-          getBadgeNumFromBarcode(barcode, function (response) {
-            $.each(scannerDetectionBadgeNumHandlers, function(i, handler) {
-              handler(response);
-            });
-          });
-        }
-
         $.each(scannerDetectionOnCompleteHandlers, function(i, handler) {
-          handler({barcode: barcode});
+          handler(barcode);
         });
       },
       onError: function (key) {
@@ -167,14 +146,19 @@
         return settings.autoSubmitForm ? $(settings.autoSubmitForm) : null;
       };
 
+      this.shouldShowErrorMessage = function() {
+        return settings.showErrorMessage && (
+          settings.showErrorMessageWhenHidden || this.getTargetField().is(':visible'));
+      };
+
       this.onDetectionComplete = function(response) {
-        if (settings.focusOnComplete) {
+        if (settings.focusOnComplete || (settings.refocusAfterBlurOnKeys && $targetBlurredOnKeys)) {
           this.getTargetField().focus();
         }
+        $targetBlurredOnKeys = null;
 
-        var property = settings.detectBadgeNum ? 'badge_num' : (settings.detectUUID ? 'uuid' : 'barcode');
-        if (settings.autoFill && response[property] && (!settings.shouldAutoFill || settings.shouldAutoFill())) {
-          this.getTargetField().val(response[property]);
+        if (settings.autoFill && response['data'] && (!settings.shouldAutoFill || settings.shouldAutoFill())) {
+          this.getTargetField().val(response['data']);
           var $form = this.getAutoSubmitForm();
           if ($form && (!settings.shouldAutoSubmit || settings.shouldAutoSubmit())) {
             $form.submit();
@@ -184,11 +168,6 @@
         if (settings.onComplete) {
           settings.onComplete.call(this, response);
         }
-      };
-
-      this.shouldShowErrorMessage = function() {
-        return settings.showErrorMessage && (
-          settings.showErrorMessageWhenHidden || this.getTargetField().is(':visible'));
       };
 
       this.onDetectionError = function(response) {
@@ -205,26 +184,29 @@
         }
       };
 
-      var handler = $.proxy(function(response) {
-        if (settings.refocusAfterBlurOnKeys && $targetBlurredOnKeys) {
-          $targetBlurredOnKeys.focus();
+      scannerDetectionOnCompleteHandlers.push($.proxy(function(barcode) {
+        if (settings.detectUUID) {
+          var uuidMatch = barcode.match(RE_UUID);
+          if (uuidMatch) {
+            this.onDetectionComplete({barcode: barcode, data: uuidMatch[1]});
+            return;
+          }
         }
-        $targetBlurredOnKeys = null;
 
-        if (response['error']) {
-          this.onDetectionError(response);
-        } else {
-          this.onDetectionComplete(response);
+        if (settings.detectBadgeNum) {
+          getBadgeNumFromBarcode(barcode, $.proxy(function(response) {
+            if (response['error']) {
+              this.onDetectionError(response);
+            } else {
+              response['data'] = response['badge_num'] || response['barcode'];
+              this.onDetectionComplete(response);
+            }
+          }, this));
+          return;
         }
-      }, this);
 
-      if (settings.detectBadgeNum) {
-        scannerDetectionBadgeNumHandlers.push(handler);
-      } else if (settings.detectUUID) {
-        scannerDetectionUUIDHandlers.push(handler);
-      } else {
-        scannerDetectionOnCompleteHandlers.push(handler);
-      }
+        this.onDetectionComplete({barcode: barcode, data: barcode});
+      }, this));
 
       if (settings.blurOnKeys.length > 0) {
         scannerDetectionOnReceiveHandlers.push($.proxy(function(event) {
